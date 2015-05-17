@@ -82,7 +82,6 @@
      if (postIndex == 1) {
       // post first block, then enable watch
       watchDiv.innerHTML = '<a target="_blank" href="/watch/' + channelName + '">watch streaming</a>&nbsp;';
-      watchDiv.innerHTML += '<a target="_blank" href="/mse/' + channelName + '">watch streaming MSE</a>';
      }
      postIndex++;
     });
@@ -111,8 +110,8 @@
 
   // Request the usermedia
   function startVideo() {
-   //navigator.getUserMedia({video: true, audio: true}, showMedia, errCallback);
-   navigator.getUserMedia({video: true, audio: false}, showMedia, errCallback);
+   navigator.getUserMedia({video: true, audio: true}, showMedia, errCallback);
+   //navigator.getUserMedia({video: true, audio: false}, showMedia, errCallback);
   }	
   function showMedia(stream) {
    localStream  = stream;

@@ -9,7 +9,6 @@
   WebM Live Streaming DEMO<br />
   <input id="channelname" type="text" placeholder="channelname" />
   <button type="button" onclick="goWatch();">Watch</button>
-  <button type="button" onclick="goWatchMSE();">Watch MSE</button>
   <button type="button" onclick="goLive();">Go Live</button>
  </body>
  <script>
@@ -18,12 +17,6 @@
     var element = document.getElementById('channelname');
     var channelName = element.value;
     document.location.href = 'watch/' + channelName;
-  }
-
-  function goWatchMSE() {
-    var element = document.getElementById('channelname');
-    var channelName = element.value;
-    document.location.href = 'mse/' + channelName;
   }
   
   function goLive() {
