@@ -1,0 +1,137 @@
+<!DOCTYPE HTML>
+<html>
+ <head>
+  <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+  <meta http-equiv="Cache-Control" content="no-cache" />
+  <title><%= title %></title>
+ </head>
+ <body>
+  <h2>GO WebM Live Streaming with Firefox: <%= channel %></h2>
+  <button id="start_button" onclick="startVideo()">Start Video</button>  
+  <button id="start_record_button" onclick="startRecording();">Start Live</button>
+  <button id="stop_record_button" onclick="stopRecording()">Stop Live</button>
+  <button id="stop_button" onclick="stopVideo()">Stop Video</button>
+  
+  <!--
+  <button id="play_button" onclick="playRecorded()">Play</button>
+  <a href="#" id="downloadlink" class="download">Download</a>
+  -->
+  
+  <br />
+  <video id="local_video" width="320px" height="240px" autoplay="1" style="border: 1px solid;"></video>
+  <!--
+  <video id="playback_video" width="320px" height="240px" autoplay="1" style="border: 1px solid;"></video>
+  -->
+  <div id="watch_link"></div>
+  
+ </body>
+ <script>
+  navigator.getUserMedia  = navigator.getUserMedia || navigator.webkitGetUserMedia || navigator.mozGetUserMedia;
+  window.RTCPeerConnection = window.webkitRTCPeerConnection || window.mozRTCPeerConnection;
+  window.RTCIceCandidate = window.mozRTCIceCandidate || window.RTCIceCandidate;
+
+  var channelName = '<%= channel %>';
+  var localVideo =  document.getElementById('local_video');
+  //var playbackVideo =  document.getElementById('playback_video');
+  //var ancher = document.getElementById('downloadlink');
+  var watchDiv = document.getElementById('watch_link'); 
+  var localStream = null;
+  var recorder =  null;
+  var blobUrl = null;
+  var blobUrls = [];
+  var recordIndex = 0;
+  var postIndex = 0;
+  var postSec = 0;
+  var intervalSec = 5;
+  var intervalMiliSec = intervalSec * 1000;
+
+
+  function startRecording() {
+   if (! localStream) {
+    console.error("no stream");
+    return;
+   }
+   if (recorder) {
+    console.warn("recorder already exist. reuse it.");
+   }
+   else {
+    recorder = new MediaRecorder(localStream);
+   }
+
+   recorder.ondataavailable = function(evt) {
+    console.log("data available, recordIndex=", recordIndex, " start playback. type=", evt.data.type);
+    var videoBlob = new Blob([evt.data], { type: evt.data.type });
+    console.log("Blob size=" + videoBlob.size);
+
+    blobToBase64(videoBlob, function(base64) {
+     // --- post to server ---
+     postSec = postIndex * intervalSec;
+     var formData = new FormData();
+     formData.append("blob_base64", base64);
+     formData.append("blob_name", "video_" + postIndex + ".webm");
+     formData.append("blob_index", postIndex);
+     formData.append("blob_sec", postSec);
+     var xhr = new XMLHttpRequest();
+	 xhr.onreadystatechange = function() {
+      if ( (xhr.readyState == 4) && (xhr.status == 200) ) {
+       console.log("xhr finish. response= " + xhr.responseText);
+      }
+     }
+     xhr.open("POST", "/upload/" + channelName, true);
+     xhr.send(formData);
+     if (postIndex == 1) {
+      // post first block, then enable watch
+      watchDiv.innerHTML = '<a target="_blank" href="/watch/' + channelName + '">watch streaming</a>&nbsp;';
+      watchDiv.innerHTML += '<a target="_blank" href="/mse/' + channelName + '">watch streaming MSE</a>';
+     }
+     postIndex++;
+    });
+   }
+
+   recorder.start(intervalMiliSec);
+   console.log("start recording");
+  }
+
+  function stopRecording() {
+   if (recorder) {
+    recorder.stop();
+    console.log("stop recording");
+   }
+  }
+
+  function blobToBase64(blob, callback) {
+   var reader = new FileReader();
+   reader.onload = function() {
+    var dataUrl = reader.result;
+    var base64 = dataUrl.split(',')[1];
+    callback(base64);
+   };
+   reader.readAsDataURL(blob);
+  }
+
+  // Request the usermedia
+  function startVideo() {
+   //navigator.getUserMedia({video: true, audio: true}, showMedia, errCallback);
+   navigator.getUserMedia({video: true, audio: false}, showMedia, errCallback);
+  }	
+  function showMedia(stream) {
+   localStream  = stream;
+   localVideo.src = window.URL.createObjectURL(stream);
+   localVideo.volume = 0;
+  }
+  var errCallback = function(e) {
+   console.log('media error', e);
+  };
+
+  function stopVideo() {
+   if (localStream) {
+    localVideo.pause();
+    localVideo.src = "";
+
+    localStream.stop();
+    localStream = null;
+   }
+  }	
+ </script> 
+</html>
+

@@ -1,0 +1,43 @@
+<!DOCTYPE HTML>
+<html>
+ <head>
+  <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+  <meta http-equiv="Cache-Control" content="no-cache" />
+  <title>WebM Live Streaming</title>
+ </head>
+ <body>
+  WebM Live Streaming DEMO<br />
+  <input id="channelname" type="text" placeholder="channelname" />
+  <button type="button" onclick="goWatch();">Watch</button>
+  <button type="button" onclick="goWatchMSE();">Watch MSE</button>
+  <button type="button" onclick="goLive();">Go Live</button>
+ </body>
+ <script>
+  document.getElementById('channelname').focus();
+  function goWatch() {
+    var element = document.getElementById('channelname');
+    var channelName = element.value;
+    document.location.href = 'watch/' + channelName;
+  }
+
+  function goWatchMSE() {
+    var element = document.getElementById('channelname');
+    var channelName = element.value;
+    document.location.href = 'mse/' + channelName;
+  }
+  
+  function goLive() {
+    var element = document.getElementById('channelname');
+    var channelName = element.value;
+    document.location.href = 'golive/' + channelName;
+  }
+
+  document.onkeydown = function (event) {
+    if (event.keyCode == 13) {
+      goWatch();
+    }
+  };
+ 
+ </script> 
+</html>
+

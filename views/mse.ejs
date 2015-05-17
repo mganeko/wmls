@@ -1,0 +1,330 @@
+<!DOCTYPE HTML>
+<html>
+ <head>
+  <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+  <meta http-equiv="Cache-Control" content="no-cache" />
+  <title><%= title %> with MSE</title>
+ </head>
+ <body>
+  Watch WebM Live Streaming : <%= channel %> with MSE<br />
+  <video id="playback_video" autoplay="1" controls="1" width="320px" height="240px" />
+  <div id="timecode">not started</div>
+  <div id="status">not started</div>
+ </body>
+ <script>
+  var channel = '<%= channel %>';
+  var server = '<%= server %>';
+  //var posSec = 0;
+  var posSec = Number('<%= sec %>');
+  posSec = posSec - 30;
+  if (posSec < 0) {
+    posSec = 0;
+  }
+  var posInterval = 5;
+
+  var timeDiv = document.getElementById('timecode');
+  var statusDiv = document.getElementById('status');
+  
+  // --- to use in firefox --
+  // about:config
+  //  media.mediasource.enabled --> true
+  //  media.mediasource.webm.enabled --> ture
+  //  madia.mediasoucre.youtoubeonly --> false
+  // --- to use in firefox --
+  
+
+  console.log('media source 0');
+  var ms = new MediaSource();
+  console.log('media source 1');
+  
+  var webh = null;
+  var headerLoaded = false;
+  //var webm = null;
+  var webmCurrent = null;
+  var webmNext = null;
+  var loadingNext = false;
+  var finishWebm = false;
+  var webmLen = 0;
+  var webmPos = 0;
+  var retrySegmentInterval = 1100; // mili sec
+  var maxFileRetryCount = 10;
+  var retryFileInterval = 900;
+  var retryCount = 0;
+  requestNextWebm();
+  
+  // -----
+
+  function getWebmHeader() {
+    //var url = 'mov/v_rrr.webh'; // NG, block timecode error of audio
+    //var url = 'mov/v_nosound.webh'; // OK, video only
+    //var url = 'mov/big.webh'; // OK
+    
+    //var url = server + '/segment/' + channel + '/v_' + channel + '.webh';
+    var url = '/segment/' + channel + '/v_' + channel + '.webh';
+    console.log('getWebmHeader(): ' + url);
+
+    var xhr = new XMLHttpRequest();
+    xhr.open('GET', url);
+    xhr.responseType = 'arraybuffer';
+    xhr.onload = function(evt) {
+      console.log('onload webh: ' + url);
+      webh = evt.target.response;
+      headerLoaded = true;
+
+      initVideo();
+    };
+    xhr.send(null);
+  }
+  
+  function requestNextWebm() {
+    //var url = 'mov/v_rrr_' + posSec + '.webm'; // NG, block timecode error of audio
+    //var url = 'mov/v_nosound_' + posSec + '.webm'; // OK, video only
+    //var url = 'mov/big.webm'; // OK
+    
+    //var url = server + '/segment/' + channel + '/v_' + channel + '_' + posSec + '.webm';
+    var url = '/segment/' + channel + '/v_' + channel + '_' + posSec + '.webm';
+    //var url = server + '/segment/' + channel;
+
+    console.log('requestNextWebm(): ' + url);
+    
+    var xhr = new XMLHttpRequest();
+    xhr.open('GET', url);
+    xhr.responseType = 'arraybuffer';
+    xhr.onload = function(evt) {
+      console.log('onload webm. status=' + xhr.status + ' , url=' + url);
+      if (xhr.status === 404) {
+        //console.log('not found. maybe no more webm segment. or not ready yet in server');
+        retryCount++;
+        if (retryCount > maxFileRetryCount) {
+          finishWebm = true;
+        　console.log('retry max. not found. maybe no more webm segment.');
+          return;          
+        }        
+        else {
+          console.log('not found/not ready yet. retry xhr count=' + retryCount + ' , max=' + maxFileRetryCount);
+          setTimeout(requestNextWebm, retryFileInterval);
+          return;
+        }
+      }
+      if (webmNext) {
+        console.warn('WARN. webmNext is not null. but contine.');
+      }
+      
+      retryCount = 0;
+      webmNext = evt.target.response;
+      posSec += posInterval;
+      loadingNext = false;
+      
+      if (! headerLoaded) {
+        getWebmHeader();
+      }
+    };
+    loadingNext = true;
+    xhr.send(null);
+  }
+
+  function prepareWebm() {
+    if (webmCurrent) {
+      console.warn('WARN. webmCurrent is not null. but contine.');
+    }
+    if (! webmNext) {
+      if (loadingNext) {
+        console.warn('still loading next');
+      }
+      else {
+        console.error('ERROR. webmNext is not ready and not loaded. maybe End of WebM');
+      }
+      return false;
+    }
+    
+    webmCurrent = webmNext;
+    webmNext = null;
+    webmLen = webmCurrent.byteLength;
+    webmPos = 0;
+    
+    requestNextWebm();
+    return true;
+  }
+
+  // --- video element --
+  var video = document.getElementById('playback_video');
+  function initVideo() {
+    console.log('initVideo()');
+    ms.addEventListener('sourceopen', initSourceBuffer, false);
+    video.src = URL.createObjectURL(ms);
+    video.play();
+  }
+
+  // --- source buffer --
+  var sb;
+  function initSourceBuffer() {
+    console.log('initSourceBuffer()');
+    //sb = ms.addSourceBuffer('video/webm; codecs="vp8,vorbis"'); // video and audio
+    sb = ms.addSourceBuffer('video/webm; codecs="vp8"'); // video only, no sound // mime type and media track shoud match exactlly
+    sb.addEventListener('updateend', appendMediaSegment, false);
+    appendInitSegment();
+  }
+
+  function appendInitSegment() {
+    console.log('appendInitSegment()');
+    if (! webh) {
+      console.error('ERROR: web header is not ready.');
+      return;
+    }
+   
+    sb.appendBuffer(webh);
+  }
+
+  function appendMediaSegment() {
+    console.log('appendMediaSegment()');
+    if (finishWebm) {
+      console.log('WebM finishd. end playing');
+      ms.endOfStream();
+      return;
+    }
+    
+    if (! webmCurrent) {
+      if (finishWebm) {
+        console.log('WebM finishd. end playing');
+        ms.endOfStream();
+        return;
+      }
+
+      var prepared = prepareWebm();
+      if (! prepared) {
+        if (loadingNext) {
+          console.log('still loading. retry appednMediaSegment()');
+          setTimeout(appendMediaSegment, retrySegmentInterval);
+          return;
+        }
+        else {
+          console.error('ERROR: webm segment is not ready. ppednMediaSegment()');
+          return;
+        }
+      }
+    }
+   
+    // ----- append next clunster ----
+    var segmentStart, segmentSize;
+    console.log('scan cluster pos=' + webmPos, ' , webm length=' + webmLen);
+    if (! isCluster(webmCurrent, webmPos)) {
+      console.error('ERROR: not a cluster tag. maybe END of WebM');
+      ms.endOfStream(); 
+      return;
+    }
+    segmentStart = webmPos;
+     
+    webmPos += clusterTagLen;
+    segmentSize = clusterTagLen;
+    var res = scanDataSize(webmCurrent, webmPos);
+    console.log('webm cluster, data len size:' + res.size + ', data len value:' + res.value);
+    segmentSize += (res.size + res.value);
+    var segment = webmCurrent.slice(segmentStart, segmentStart + segmentSize);
+    sb.appendBuffer(segment);
+    
+    webmPos += (res.size + res.value);
+    if (webmPos >= webmLen) {
+      console.log('END of current WebM Segment, neetprepare Next to Current');
+      webmCurrent = null;
+    }
+  }
+
+
+  // ----- helper ------
+  var clusterTag = new Uint8Array([0x1F, 0x43, 0xb6, 0x75]);
+  var clusterTagLen = clusterTag.length;
+  function isCluster(buff, pos) {
+    var uint8Array = new Uint8Array(buff, pos);
+    for (var i =0; i < clusterTagLen; i++) {
+     if (clusterTag[i] != uint8Array[i]) {
+       return false;
+     }
+    }
+    
+    return true;
+  }
+
+
+
+  function scanDataSize(buff, pos) {
+    var dataSizeSize = 0;
+    //var firstByte = buff.readUInt8(pos); // node.js ArrayBuffer
+    var uint8Array = new Uint8Array(buff);
+    var firstByte = uint8Array[pos]; // client JS Uint8Array 
+    var firstMask;
+    
+    if (firstByte & 0x80) {
+      dataSizeSize = 1;
+      firstMask = 0x7f;
+    }
+    else if (firstByte & 0x40) {
+      dataSizeSize = 2;
+      firstMask = 0x3f;
+    }
+    else if (firstByte & 0x20) {
+      dataSizeSize = 3;
+      firstMask = 0x1f;
+    }
+    else if (firstByte & 0x10) {
+      dataSizeSize = 4;
+      firstMask = 0x0f;
+    }
+    else if (firstByte & 0x08) {
+      dataSizeSize = 5;
+      firstMask = 0x07;
+    }
+    else if (firstByte & 0x04) {
+      dataSizeSize = 6;
+      firstMask = 0x03;
+    }
+    else if (firstByte & 0x02) {
+      dataSizeSize = 7;
+      firstMask = 0x01;
+    }
+    else if (firstByte & 0x01) {
+      dataSizeSize = 8;
+      firstMask = 0x00;
+    }
+    else {
+      console.log('ERROR: bad DATA byte');
+      return null;
+    }
+  
+    var decodeRes = decodeBytes(buff, pos, dataSizeSize, firstByte, firstMask); 
+    return decodeRes;
+    
+    //return { length: decodeRes, offset: dataSizeSize };
+  }
+
+
+  function byteToHex(b) {
+    var str = '0' + b.toString(16);
+    var len = str.length;
+    return str.substring(len - 2).toUpperCase();
+  }
+
+
+  function decodeBytes(buff, pos, size, firstByte, firstMask) {
+    var uint8Array = new Uint8Array(buff);
+    var value = firstByte & firstMask;
+    var str = ('[' + byteToHex(firstByte) + ']');
+    var followByte;
+    for (var i = 1; i < size; i++) {
+      //followByte = buff.readUInt8(pos + i);
+      followByte = uint8Array[pos + i];
+      str += '[';
+      str += byteToHex(followByte);
+      str += ']';
+      value = (value << 8) + followByte;
+    }
+    
+    var res = {};
+    res.str = str;
+    res.size = size;
+    res.value = value;
+    
+    return res;
+  }
+
+ </script>
+</html>

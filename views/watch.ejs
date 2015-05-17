@@ -1,0 +1,39 @@
+<!DOCTYPE HTML>
+<html>
+ <head>
+  <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+  <meta http-equiv="Cache-Control" content="no-cache" />
+  <title><%= title %></title>
+ </head>
+ <body>
+  Watch WebM Live Streaming : <%= channel %><br />
+  watch in <a href='vlc://<%= server %>/stream/<%= channel %>?uuid=<%= uuid %>'>VLC for iOS</a><br />
+  <video id="watch_video" width="320px" height="240px" autoplay="1" style="border: 1px solid;">
+   <source src='/stream/<%= channel %>?uuid=<%= uuid %>' type='video/webm;' />
+  </video>
+  <div id="timecode">not started</div>
+  <div id="status">not started</div>
+ </body>
+ <script>
+  var watchVideo = document.getElementById('watch_video');
+  var timeDiv = document.getElementById('timecode');
+  var statusDiv = document.getElementById('status');
+  //watchVideo.playbackRate = 0.5;
+  //watchVideo.playbackRate = 2.0;
+
+  watchVideo.ontimeupdate = function() {
+   timeDiv.innerHTML = 'time:' + watchVideo.currentTime + ' sec, buffered(' + watchVideo.buffered.start(0) + ' - ' + watchVideo.buffered.end(0) + ')'; 
+  };
+  watchVideo.onwaiting = function() {
+   statusDiv.innerHTML = 'waiting..';
+  };
+  watchVideo.onplaying = function() {
+   statusDiv.innerHTML = 'playing';
+  };
+  watchVideo.onended = function() {
+   statusDiv.innerHTML = '..end';
+  };
+  
+ </script> 
+</html>
+
