@@ -33,7 +33,7 @@ or just type
 * Click [Start Video] button
 * Click [Start Live] button
 
-## to watch Live streamig
+## to watch Live streaming
 * Wait 10 sec, after start live streaming
 * Open http://localhost:8000/ with firefox
 * Type channel name and click [Watch] button  
