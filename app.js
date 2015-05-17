@@ -1,5 +1,3 @@
-/// <reference path="typings/node/node.d.ts"/>
-
 //
 // WMLS server.
 //  using concat streaming with original logic for pipe
@@ -78,56 +76,6 @@ function getChannelStatus(name) {
  return channelStatus;
 }
 
-// http://jxck.hatenablog.com/entry/20111204/1322966453
-function SleepStream() {
- this.readable = true;
- this.timer = null;
- this.piped = false;
- this.paused = true;
-}
-
-util.inherits(SleepStream, stream.Stream);
-
-SleepStream.prototype.resume = function() {
- console.log('---SleepStream start timeout on resume.');
- if (! this.paused) {
-  console.log('---SleepStream not paused in resume(). do nothing.');
-  return;
- }
- 
- this.paused = false;
- this.timer = setTimeout(function() {
-  console.log('---SleepStream timeout and emit end.');
-  this.timer = null;
-  return this.emit('end');
- }.bind(this), 1000);
-};
-
-SleepStream.prototype.pause = function() {
- //if (this.timer) {
- // clearTimout(this.timer);
- //}
- if (this.paused) {
-  console.log('---SleepStream already paused in pause(). do nothing.');
-  return;
- }
- else {
-  this.paused = true;
- }
-};
-
-SleepStream.prototype.pipe = function(dest) {
-  this.piped = true;
-
-  // ここでは stream.Stream.prototype.pipe.apply(this, arguments); もok
-  this.on('data', function(data) {
-    dest.write(data);
-  });
-};
-
-SleepStream.prototype.setEncoding = function(encoding) {};
-SleepStream.prototype.destroy = function() {};
-SleepStream.prototype.destroySoon = function() {};
 
 
 // ------------ application ------------
@@ -363,69 +311,6 @@ function writeWebmCluster(filename, buf, startPosition, endPosition) {
  wstream.write(bufToWrite);
  wstream.end();
 }
-
-/*======== NOT USED =========
-// -- NG ---
-function prepareReadStream(filename, retryCount) {
- var tryInterval = 1000; // mili sec
- console.log('prepareReadStream() file=' + filename + ' retryCount=' + retryCount);
- if (retryCount < 0) {
-  return null;
- }
- 
- while (1) {
-  var readStream = fs.createReadStream( filename );
-  readStream.on('error', function() {
-   setTimeout(prepareReadStream, tryInterval, filename, retryCount-1);
-  });
-  readStream.on('readable', function() {
-   return readStream;
-  });
- }
- 
- console.warn('prepareReadStream() May not reach here');
- return null;
-}
-
-// -- NG ---
-function waitFileReady(filename, retryCount) {
- var tryInterval = 1000; // mili sec
- console.log('waitFileReady() retryCount=' + retryCount + ' file=' + filename);
- if (retryCount < 0) {
-  return false;
- }
- 
- while(1) {
-  var stat = fs.statSync(filename);
-  if (stat.isFile()) {
-   console.log('file is ready:' + filename);
-   return true;
-  }
-  else {
-  }
- }
-}
-
-
-
-// -- NG ---
-function appendNextStream(nextFunc, filename, retryCount) {
- var tryInterval = 1000; // mili sec
- console.log('appendNextStream() file=' + filename + ' retryCount=' + retryCount);
- if (retryCount < 0) {
-  return null;
- }
-
- var readStream = fs.createReadStream( filename );
- readStream.on('error', function() {
-  setTimeout(appendNextStream, tryInterval, nextFunc, filename, retryCount-1);
-  return null;
- });
- readStream.on('readable', function() {
-  return nextFunc(readStream);
- });
-}
-======== NOT USED =========*/
 
 
 // ============
