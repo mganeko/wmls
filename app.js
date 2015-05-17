@@ -2,7 +2,7 @@
 
 //
 // WMLS server.
-// same as app.js but using original logic for pipe and wait blobs
+//  using concat streaming with original logic for pipe
 // 
 
 var multiparty = require('multiparty')
@@ -12,15 +12,11 @@ var fs = require('fs');
 var stream = require('stream');
 var util = require('util');
 var uuid = require('node-uuid');
-//var CombinedStream = require('combined-stream');
 var clusterIntervalSec = 5;
 
 //var port = 8080;
 var port = 8000;
-
-//var serverURL = 'loalhost:8080';
 var serverURL = 'loalhost:' + port;
-//var serverURL = 'kurento.talkin.info:8080';
 
 // TODO
 //  DONE. video cache disable
